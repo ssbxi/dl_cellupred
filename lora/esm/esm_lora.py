@@ -112,7 +112,7 @@ def compute_metrics(p):
     roc_auc = roc_auc_score(true_labels, logits[:, 1]) if len(np.unique(true_labels)) == 2 else float('nan')
     
     mcc = matthews_corrcoef(true_labels, predictions)
-    # PRC-AUC (平均精度)
+    
     prc_auc = average_precision_score(true_labels, logits[:, 1]) if len(np.unique(true_labels)) == 2 else float('nan')
 
     
@@ -165,20 +165,20 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
 
 
-    # 数据准备
+    
     train_sequences, train_labels = prepare_dataset(args.train_amp_fasta, args.train_non_amp_fasta)
     var_sequences, var_labels = prepare_dataset(args.var_amp_fasta, args.var_non_amp_fasta)
     test_sequences, test_labels = prepare_dataset(args.test_amp_fasta, args.test_non_amp_fasta)
 
-    # 模型与Tokenizer加载
+    
     model, tokenizer = load_esm2_model(args.model_shorthand, quantized=args.quantized)
 
-    # 数据集
+    
     train_dataset = tokenize_and_create_dataset(train_sequences, train_labels, tokenizer)
     var_dataset = tokenize_and_create_dataset(var_sequences, var_labels, tokenizer)
     test_dataset = tokenize_and_create_dataset(test_sequences, test_labels, tokenizer)
 
-    # LoRA配置
+    
     lora_config = LoraConfig(
         task_type=TaskType.SEQ_CLS,
         inference_mode=False,
@@ -198,7 +198,7 @@ def main():
     elif args.model_shorthand in ["650m", "3B"]:
         lr = 1e-4
     else:
-        lr = 1e-4  # 默认保险
+        lr = 1e-4  
         
     training_args = TrainingArguments(
         output_dir=args.output_dir,
@@ -228,7 +228,7 @@ def main():
     trainer.train()
     pd.DataFrame(trainer.state.log_history).to_csv(f"{training_args.output_dir}/train_log.csv")
 
-    # 1. 保存“全量模型快照” —— 包含微调后的主干+分类头+所有参数
+    
     os.makedirs(f"{args.output_dir}/model_complete", exist_ok=True)
     trainer.save_model(f"{args.output_dir}/model_complete")
     tokenizer.save_pretrained(f"{args.output_dir}/model_complete")
@@ -243,7 +243,7 @@ def main():
     probabilities = torch.nn.functional.softmax(torch.tensor(logits), dim=1).numpy()
     test_metrics = compute_metrics((logits, true_labels))
 
-    # 保存所有测试集指标到csv（只有一行）
+    
     metrics_df = pd.DataFrame([test_metrics])
     metrics_df.to_csv(f"{args.output_dir}/test_metrics.csv", index=False)
     print(f"Saved all test metrics to {args.output_dir}/test_metrics.csv")
@@ -251,7 +251,7 @@ def main():
     
 
 
-    # 保存概率和标签
+    
     np.save(f"{args.output_dir}/test_probabilities.npy", probabilities)
     np.save(f"{args.output_dir}/test_labels.npy", true_labels)
     print(f"Saved test metrics and predictions to {args.output_dir}")
